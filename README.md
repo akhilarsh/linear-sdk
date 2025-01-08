@@ -1,1 +1,1 @@
-# linear-api
+# linear-sdk

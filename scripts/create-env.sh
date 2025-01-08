@@ -1,0 +1,3 @@
+echo "LINEAR_API_KEY=${LINEAR_API_KEY}" >> .env
+echo "CYCLE_START_DATE=${CYCLE_START_DATE}" >> .env
+echo "CYCLE_END_DATE=${CYCLE_END_DATE}" >> .env

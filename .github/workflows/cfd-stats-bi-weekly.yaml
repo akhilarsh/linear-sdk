@@ -1,0 +1,44 @@
+name: CFD Stats Bi-Weekly
+
+on:
+  workflow_dispatch:
+    inputs:
+      cycleStart:
+        description: 'cycle start date'
+        required: false
+        default: '2024-12-16'
+        type: string
+      cycleEnd:
+        description: 'cycle end date'
+        required: false
+        default: '2024-12-29'
+        type: string
+  schedule:
+    - cron: '0 0 * * 1' # Runs every Monday at 00:00 UTC
+
+jobs:
+  run-main-ts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Create Environment File
+        run: sh scripts/create-env.sh
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          CYCLE_START: ${{ github.event.inputs.cycleStart }}
+          CYCLE_END: ${{ github.event.inputs.cycleEnd }}
+
+      - name: Run main.ts
+        run: node main.ts
