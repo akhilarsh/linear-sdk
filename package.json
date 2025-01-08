@@ -1,7 +1,7 @@
 {
   "name": "linear-sdk",
-  "description": "Integration with linear SDK to fetch stats and data for reporting",
   "version": "1.0.0",
+  "description": "Integration with linear SDK to fetch stats and data for reporting",
   "private": true,
   "license": "MIT",
   "engines": {
