@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       cycleStart:
-        description: 'cycle start date'
+        description: 'cycle start date : format 2024-12-16'
         required: false
-        default: '2024-12-16'
+        default: ''
         type: string
       cycleEnd:
-        description: 'cycle end date'
+        description: 'cycle end date : format 2024-12-29'
         required: false
-        default: '2024-12-29'
+        default: ''
         type: string
   schedule:
-    - cron: '0 0 * * 1' # Runs every Monday at 00:00 UTC
+    - cron: '30 4 * * 1' # Runs every Monday at 10 AM IST
 
 jobs:
   run-main-ts:
@@ -23,15 +23,17 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: '14'
+          node-version: latest
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install -g ts-node typescript
 
       - name: Create Environment File
         run: sh scripts/create-env.sh
@@ -39,6 +41,17 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           CYCLE_START: ${{ github.event.inputs.cycleStart }}
           CYCLE_END: ${{ github.event.inputs.cycleEnd }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TRR_QA_BOT: ${{ secrets.SLACK_WEBHOOK_TRR_QA_BOT }}
 
       - name: Run main.ts
-        run: node main.ts
+        id: test
+        run: npm run start
+
+      - name: Save Logs
+        if: always() && steps.test.outcome == 'success' || steps.test.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        id: logs-upload-step
+        with:
+          name: logs-${{ github.run_id }}
+          path: logs/

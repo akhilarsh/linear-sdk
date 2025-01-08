@@ -11,5 +11,5 @@
     "**/*.js": { "when": "$(basename).ts" },
     "**/*.js.map": true
   },
-  "cSpell.words": ["datetime", "dbname", "DDTHH", "filenamify", "pino", "prettier"]
+  "cSpell.words": ["datetime", "dbname", "DDTHH", "filenamify", "pino", "prettier", "testinqabot"]
 }

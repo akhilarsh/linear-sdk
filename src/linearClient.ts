@@ -5,3 +5,6 @@ import { linearConfig } from './config';
 export const linearClient = new LinearClient({
   apiKey: linearConfig().apiKey,
 });
+
+export const cycleStartDate = linearConfig().cycleStart;
+export const cycleEndDate = linearConfig().cycleEnd;

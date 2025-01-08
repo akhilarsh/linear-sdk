@@ -1,4 +1,4 @@
-import { linearClient } from './linearClient';
+import { cycleEndDate, cycleStartDate, linearClient } from './linearClient';
 import { logger } from './logger';
 import { startOfDay, endOfDay, addDays } from 'date-fns';
 
@@ -29,8 +29,8 @@ export async function getIssuesByTeamAndPriority(projectName: string) {
     logger.info(`Days since base: ${daysSinceBase}`);
 
     // Calculate current cycle dates
-    const cycleStart = startOfDay(addDays(baseDate, cycleNumber * 14));
-    const cycleEnd = endOfDay(addDays(cycleStart, 13)); // 14 days - 1
+    const cycleStart = cycleStartDate ? new Date(cycleStartDate) : startOfDay(addDays(baseDate, cycleNumber * 14));
+    const cycleEnd = cycleEndDate ? new Date(cycleEndDate) : endOfDay(addDays(cycleStart, 13)); // 14 days - 1
 
     // Fetch issues with specific filters
     const issues = await linearClient.issues({
@@ -111,7 +111,7 @@ export async function getIssuesByTeamAndPriority(projectName: string) {
     return {
       dateRange: {
         from: cycleStart,
-        to: cycleEnd,
+        to: cycleEnd
       },
       stats: results,
     };
@@ -145,7 +145,7 @@ function calculateTotalCounts(
   return totals;
 }
 
-function formatAsTable(data: Record<string, Record<string, number>>): string {
+export function formatAsTable(data: Record<string, Record<string, number>>): string {
   const headers = ['Team', 'Urgent', 'High', 'Medium', 'Low', 'No Priority', 'Total'];
   const rows = Object.entries(data).map(([team, counts]) => [
     team,
@@ -194,4 +194,3 @@ function formatAsTable(data: Record<string, Record<string, number>>): string {
 
   return [separator, headerRow, separator, ...dataRows, separator].join('\n');
 }
-

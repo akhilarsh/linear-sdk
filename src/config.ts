@@ -3,6 +3,8 @@ dotenv.config();
 
 export type ILinear = {
   apiKey: string;
+  cycleStart: string;
+  cycleEnd: string;
 };
 
 export function linearConfig(): ILinear {
@@ -12,5 +14,8 @@ export function linearConfig(): ILinear {
 
   return {
     apiKey: process.env.LINEAR_API_KEY,
+    cycleStart: process.env.CYCLE_START_DATE,
+    cycleEnd: process.env.CYCLE_END_DATE,
   };
 }
+
