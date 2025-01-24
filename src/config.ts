@@ -18,4 +18,3 @@ export function linearConfig(): ILinear {
     cycleEnd: process.env.CYCLE_END_DATE,
   };
 }
-

@@ -13,11 +13,37 @@ on:
         required: false
         default: ''
         type: string
+      postToSlack:
+        description: 'Post results to Slack (Y/N)'
+        required: false
+        default: 'Y'
+        type: string
   schedule:
-    - cron: '30 4 * * 1' # Runs every Monday at 10 AM IST
+    - cron: '30 4 * * 2' # Runs every Tuesday at 10 AM IST
 
 jobs:
+  check-date:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.date-check.outputs.should_run }}
+    steps:
+      - name: Check if Alternate Tuesday
+        id: date-check
+        run: |
+          REFERENCE_DATE="2025-01-14"
+          TODAY=$(date +%Y-%m-%d)
+          DIFF=$(( ($(date -d "$TODAY" +%s) - $(date -d "$REFERENCE_DATE" +%s)) / 86400 ))
+          if [ $((DIFF % 14)) -eq 0 ]; then
+            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "Today is an alternate Tuesday. Proceeding with workflow."
+          else
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            echo "Not an alternate Tuesday. Workflow will be skipped."
+          fi
+
   run-main-ts:
+    needs: check-date
+    if: needs.check-date.outputs.should_run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -41,6 +67,7 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           CYCLE_START: ${{ github.event.inputs.cycleStart }}
           CYCLE_END: ${{ github.event.inputs.cycleEnd }}
+          POST_TO_SLACK: ${{ github.event.inputs.postToSlack }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TRR_QA_BOT: ${{ secrets.SLACK_WEBHOOK_TRR_QA_BOT }}
 

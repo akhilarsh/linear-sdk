@@ -2,7 +2,6 @@
 # linear-sdk
 
 ## Setup
-
 ```
 
 1. Clone the repository:
@@ -30,5 +29,5 @@ npm install
 2. Run the application:
 
 ```sh
-npm run start 
+npm run start
 ```

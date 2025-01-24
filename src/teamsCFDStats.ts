@@ -1,7 +1,7 @@
-import { cycleEndDate, cycleStartDate, linearClient } from './linearClient';
+import { formatDate, getCurrentCycleDate } from './date';
+import { linearClient } from './linearClient';
 import { logger } from './logger';
-import { startOfDay, endOfDay, addDays } from 'date-fns';
-
+import { postCfdReportToSlack } from './slack';
 interface TeamIssuesCount {
   team: string;
   Urgent: number;
@@ -12,27 +12,14 @@ interface TeamIssuesCount {
   total: number;
 }
 
-export async function getIssuesByTeamAndPriority(projectName: string) {
+export async function getCfdByTeamAndPriority(projectName: string) {
   try {
     if (!projectName) {
       throw new Error('Project name is required');
     }
 
-    // Calculate the current two-week cycle
-    const baseDate = new Date('2024-12-16'); // Starting point of the cycles
-    const today = new Date();
-    const daysSinceBase = Math.floor(
-      (today.getTime() - baseDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    const cycleNumber = Math.floor(daysSinceBase / 14);
-    logger.info(`Cycle number: ${cycleNumber}`);
-    logger.info(`Days since base: ${daysSinceBase}`);
-
-    // Calculate current cycle dates
-    const cycleStart = cycleStartDate ? new Date(cycleStartDate) : startOfDay(addDays(baseDate, cycleNumber * 14));
-    const cycleEnd = cycleEndDate ? new Date(cycleEndDate) : endOfDay(addDays(cycleStart, 13)); // 14 days - 1
-
-    // Fetch issues with specific filters
+    // get the current two-week cycle
+    const { cycleStart, cycleEnd } = getCurrentCycleDate();
     const issues = await linearClient.issues({
       filter: {
         and: [
@@ -60,9 +47,9 @@ export async function getIssuesByTeamAndPriority(projectName: string) {
         ],
       },
     });
-
     // Create a map to store team and priority counts
     const teamStats = new Map<string, TeamIssuesCount>();
+    const urgentAndHighLinks: Record<string, string[]> = { Urgent: [], High: [] };
 
     // Process all issues
     for (const issue of issues.nodes) {
@@ -85,35 +72,21 @@ export async function getIssuesByTeamAndPriority(projectName: string) {
       // teamStat.set(priorityLabel, (teamStat.get(priorityLabel) || 0) + 1);
       teamStat[priorityLabel] += 1;
       teamStat.total += 1;
+
+      // Collect links for urgent and high priority issues
+      if (priorityLabel === 'Urgent' || priorityLabel === 'High') {
+        urgentAndHighLinks[priorityLabel].push(issue.url);
+      }
     }
-
-    // Format and return the results
-    const results = Array.from(teamStats.values()).reduce(
-      (acc, stat) => {
-        acc[stat.team] = {
-          Urgent: stat.Urgent,
-          High: stat.High,
-          Medium: stat.Medium,
-          Low: stat.Low,
-          'No Priority': stat['No Priority'],
-          Total: stat.total,
-        };
-        return acc;
-      },
-      {} as Record<string, Record<string, number>>,
-    );
-
-    logger.info(`Project: ${projectName}`);
-    logger.info(`Date Range: ${cycleStart} to ${cycleEnd}`);
-    logger.info('\nIssues by Team and Priority:');
-    logger.info('\n' + formatAsTable(results));
+    const results = formatCfdMapAsRecord(teamStats);
 
     return {
       dateRange: {
         from: cycleStart,
-        to: cycleEnd
+        to: cycleEnd,
       },
       stats: results,
+      links: urgentAndHighLinks,
     };
   } catch (error) {
     logger.error('Error fetching Linear issues:', error);
@@ -121,9 +94,7 @@ export async function getIssuesByTeamAndPriority(projectName: string) {
   }
 }
 
-function calculateTotalCounts(
-  data: Record<string, Record<string, number>>,
-): Record<string, number> {
+function countIssueByTeam(data: Record<string, Record<string, number>>): Record<string, number> {
   const totals = {
     Urgent: 0,
     High: 0,
@@ -145,7 +116,26 @@ function calculateTotalCounts(
   return totals;
 }
 
-export function formatAsTable(data: Record<string, Record<string, number>>): string {
+function formatCfdMapAsRecord(teamStats: Map<string, TeamIssuesCount>) {
+  // Format and return the results
+  const results = Array.from(teamStats.values()).reduce(
+    (acc, stat) => {
+      acc[stat.team] = {
+        Urgent: stat.Urgent,
+        High: stat.High,
+        Medium: stat.Medium,
+        Low: stat.Low,
+        'No Priority': stat['No Priority'],
+        Total: stat.total,
+      };
+      return acc;
+    },
+    {} as Record<string, Record<string, number>>,
+  );
+  return results;
+}
+
+export function formatCfdRecordAsTable(data: Record<string, Record<string, number>>): string {
   const headers = ['Team', 'Urgent', 'High', 'Medium', 'Low', 'No Priority', 'Total'];
   const rows = Object.entries(data).map(([team, counts]) => [
     team,
@@ -158,7 +148,7 @@ export function formatAsTable(data: Record<string, Record<string, number>>): str
   ]);
 
   // Calculate and add total row
-  const totalCounts = calculateTotalCounts(data);
+  const totalCounts = countIssueByTeam(data);
   const totalRow = [
     'Total',
     totalCounts.Urgent,
@@ -193,4 +183,51 @@ export function formatAsTable(data: Record<string, Record<string, number>>): str
   dataRows.splice(totalSeparatorIndex, 0, separator);
 
   return [separator, headerRow, separator, ...dataRows, separator].join('\n');
+}
+
+export function listUrgentAndHighCfds(links: Record<string, string[]>) {
+  const urgentLinks = links.Urgent || [];
+  const highPriorityLinks = links.High || [];
+  const formatLinks = (links: string[]) => {
+    return links.length > 0 ? links.join('\n') : 'None';
+  };
+
+  const urgentAndHighLinks = `
+Urgent Issues:
+${formatLinks(urgentLinks)}
+
+High Priority Issues:
+${formatLinks(highPriorityLinks)}
+`;
+  return urgentAndHighLinks;
+}
+
+export async function prepareCfdReport(projectName: string) {
+  try {
+    const yourTableData = await getCfdByTeamAndPriority(projectName);
+    const reportData = formatCfdRecordAsTable(yourTableData.stats);
+    const urgentAndHighLinks = listUrgentAndHighCfds(yourTableData.links);
+    const fromDate = formatDate(yourTableData.dateRange.from);
+    const toDate = formatDate(yourTableData.dateRange.to);
+
+    // Format the data for Slack
+    const slackMessage = `
+    *Bi-Weekly CFD Report (${fromDate} - ${toDate})*
+\`\`\`
+${reportData}
+\`\`\`
+*Urgent and High Priority Issue Links:*
+\`\`\`
+${urgentAndHighLinks}
+\`\`\`
+`;
+    logger.info(`Project: ${projectName}`);
+    logger.info(`Date Range: ${fromDate} to ${toDate}`);
+    logger.info('CFDs by Team and Priority:');
+    logger.info('\n' + slackMessage);
+
+    await postCfdReportToSlack(slackMessage, fromDate, toDate, reportData, urgentAndHighLinks);
+  } catch (error) {
+    logger.error('Failed to fetch issue statistics:', error);
+  }
 }
