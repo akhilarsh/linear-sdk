@@ -67,6 +67,7 @@ jobs:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
           CYCLE_START: ${{ github.event.inputs.cycleStart }}
           CYCLE_END: ${{ github.event.inputs.cycleEnd }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
           POST_TO_SLACK: ${{ github.event.inputs.postToSlack }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           SLACK_WEBHOOK_TRR_QA_BOT: ${{ secrets.SLACK_WEBHOOK_TRR_QA_BOT }}
