@@ -226,7 +226,7 @@ ${urgentAndHighLinks}
     logger.info('CFDs by Team and Priority:');
     logger.info('\n' + slackMessage);
 
-    await postCfdReportToSlack(slackMessage, fromDate, toDate, reportData, urgentAndHighLinks);
+    await postCfdReportToSlack(slackMessage);
   } catch (error) {
     logger.error('Failed to fetch issue statistics:', error);
   }
