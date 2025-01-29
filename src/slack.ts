@@ -27,13 +27,7 @@ export async function postToSlack(message: string, webhookUrl?: string) {
   }
 }
 
-export async function postCfdReportToSlack(
-  slackMessage: string,
-  fromDate: string,
-  toDate: string,
-  reportData: string,
-  urgentAndHighLinks: string,
-) {
+export async function postCfdReportToSlack(slackMessage: string,) {
   // Check if this is a scheduled run
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === 'schedule';
   const postToSlackEnv = process.env.POST_TO_SLACK === 'Y';
