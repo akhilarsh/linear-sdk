@@ -13,17 +13,11 @@ export async function postToSlack(message: string, webhookUrl?: string) {
       name: 'Linear CFD Bot',
     };
 
-    await axios.post(slackWebhookUrl, payload);
+     await axios.post(slackWebhookUrl, payload);
     logger.info('Message posted to Slack successfully');
   } catch (error) {
-    if (process.env.GITHUB_EVENT_NAME === 'schedule') {
-      // Only throw error for scheduled runs
       logger.error('Error posting to Slack:', error);
-      throw error;
-    } else {
-      // Just log the error for non-scheduled runs
-      logger.warn('Slack posting skipped or failed (non-scheduled run)');
-    }
+    throw error;
   }
 }
 
